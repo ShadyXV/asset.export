@@ -6,3 +6,4 @@ coverage/
 *.log
 .env*
 !.env.example
+\n# Rust\nbackend/target\nbackend/**/*.rs.bk
