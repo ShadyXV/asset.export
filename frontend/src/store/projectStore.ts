@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Project, ImageAsset, ExportSettings } from '../types';
-import { MockAPI } from '../services/api';
+import { ApiService } from '../services/api';
 
 interface AppState {
   projects: Project[];
@@ -14,6 +14,7 @@ interface AppState {
   setNewProjectModalOpen: (isOpen: boolean) => void;
   fetchProjects: () => Promise<void>;
   setActiveProject: (project: Project | null) => void;
+  createProject: (name: string, directory: string) => void;
   selectImage: (id: string | null) => void;
   updateImageOrder: (projectId: string, newImages: ImageAsset[]) => void;
   batchRenameImages: (pattern: string) => void;
@@ -39,12 +40,33 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   fetchProjects: async () => {
     set({ isLoading: true });
-    const projects = await MockAPI.getProjects();
-    set({ projects, isLoading: false });
+    try {
+      const projects = await ApiService.getProjects();
+      set({ projects, isLoading: false });
+    } catch (error) {
+      console.error('Failed to fetch projects', error);
+      set({ isLoading: false });
+    }
   },
 
   setActiveProject: (project) => {
     set({ activeProject: project, selectedImageId: null });
+  },
+
+  createProject: (name, directory) => {
+    const newProject: Project = {
+      id: crypto.randomUUID(),
+      name,
+      masterDirectory: directory,
+      lastOpened: new Date().toISOString(),
+      imageCount: 0,
+      totalSizeBytes: 0,
+      images: [],
+    };
+    set((state) => ({
+      projects: [...state.projects, newProject],
+      activeProject: newProject,
+    }));
   },
 
   selectImage: (id) => {
@@ -99,7 +121,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!activeProject) return;
 
     set({ isExporting: true });
-    await MockAPI.exportProject(activeProject, exportSettings);
-    set({ isExporting: false });
+    try {
+      await ApiService.exportProject(activeProject, exportSettings);
+    } catch (error) {
+      console.error('Export failed', error);
+    } finally {
+      set({ isExporting: false });
+    }
   }
 }));

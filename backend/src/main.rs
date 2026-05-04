@@ -41,6 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/projects", get(api::get_projects))
         .route("/export", post(api::trigger_export))
+        .route("/browse", get(api::browse_directory))
         .with_state(pool);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3001").await?;

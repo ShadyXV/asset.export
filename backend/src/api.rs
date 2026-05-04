@@ -47,3 +47,36 @@ pub async fn trigger_export(
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e}))).into_response(),
     }
 }
+
+pub async fn browse_directory() -> impl IntoResponse {
+    let path = tokio::task::spawn_blocking(|| {
+        #[cfg(target_os = "macos")]
+        {
+            let output = std::process::Command::new("osascript")
+                .arg("-e")
+                .arg("POSIX path of (choose folder)")
+                .output()
+                .ok()?;
+            
+            if output.status.success() {
+                let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !path_str.is_empty() {
+                    return Some(path_str);
+                }
+            }
+            None
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            rfd::FileDialog::new().pick_folder().map(|p| p.display().to_string())
+        }
+    })
+    .await
+    .unwrap_or(None);
+
+    if let Some(p) = path {
+        return (StatusCode::OK, Json(serde_json::json!({ "path": p }))).into_response();
+    }
+    
+    (StatusCode::NO_CONTENT, "").into_response()
+}
